@@ -3,29 +3,13 @@ import { defineStore } from 'pinia'
 import axios from 'axios'
 
 export const useAuthStore = defineStore('auth', () => {
-  // --- STATE ---
-  // Fungsi inisialisasi yang lebih aman untuk menangani data yang mungkin rusak
-  const initializeUser = () => {
-    try {
-      const storedUser = localStorage.getItem('user');
-      // Jika ada data user di localStorage, parse. Jika tidak, kembalikan null.
-      return storedUser ? JSON.parse(storedUser) : null;
-    } catch (e) {
-      console.error("Gagal mem-parse data user dari localStorage, data akan dibersihkan.", e);
-      localStorage.removeItem('user');
-      return null;
-    }
-  };
-
-  const user = ref(initializeUser());
+  const user = ref(JSON.parse(localStorage.getItem('user')));
   const token = ref(localStorage.getItem('token'));
   const error = ref(null);
 
-  // --- GETTERS ---
   const isAuthenticated = computed(() => !!token.value);
-  const userId = computed(() => user.value?.id); // Menggunakan optional chaining untuk keamanan
+  const userId = computed(() => user.value?.id);
 
-  // --- ACTIONS ---
   async function login(email, password) {
     try {
       const response = await axios.post('/api/login', { email, password });
@@ -53,11 +37,26 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
-    user.value = null
-    token.value = null
-    localStorage.clear()
+  async function updateProfile(newUserData) {
+    if (!userId.value) return false;
+    try {
+      const response = await axios.put(`/api/users/${userId.value}`, newUserData);
+      const updatedUser = response.data;
+      user.value = updatedUser;
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      return true;
+    } catch (err) {
+      console.error("Gagal update profil:", err);
+      return false;
+    }
   }
 
-  return { user, token, error, isAuthenticated, userId, login, register, logout }
+  function logout() {
+    user.value = null;
+    token.value = null;
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+  }
+
+  return { user, token, error, isAuthenticated, userId, login, register, logout, updateProfile }
 })

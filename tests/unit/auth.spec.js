@@ -1,49 +1,41 @@
 import { setActivePinia, createPinia } from 'pinia'
-import { useAuthStore } from '@/stores/auth' // Impor store yang akan diuji
-import { describe, it, expect, beforeEach } from 'vitest'
+import { useAuthStore } from '@/stores/auth'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import axios from 'axios'
 
-// 'describe' digunakan untuk mengelompokkan tes-tes terkait
+vi.mock('axios')
+
 describe('Auth Store', () => {
-
-  // 'beforeEach' akan berjalan sebelum setiap tes ('it') dijalankan.
-  // Ini memastikan setiap tes dimulai dari kondisi yang bersih.
   beforeEach(() => {
-    // Membuat instance Pinia baru untuk setiap tes
     setActivePinia(createPinia())
-    // Membersihkan localStorage untuk memastikan tidak ada sisa data dari tes sebelumnya
     localStorage.clear()
+    vi.resetAllMocks()
   })
 
-  // 'it' adalah sebuah test case individual
   it('logs in a user successfully', async () => {
     const auth = useAuthStore()
-    expect(auth.isAuthenticated).toBe(false) // Awalnya, user belum login
-
-    // Menjalankan action login
+    const fakeUser = { id: 1, name: 'Andi Musisi', email: 'andi@gmail.com' }
+    axios.post.mockResolvedValue({ data: fakeUser })
     await auth.login('andi@gmail.com', '123')
-
-    // 'expect' digunakan untuk memverifikasi hasilnya
-    expect(auth.isAuthenticated).toBe(true) // Sekarang, user seharusnya sudah login
-    expect(auth.user.name).toBe('Andi Musisi') // Nama user harus sesuai
+    expect(auth.isAuthenticated).toBe(true)
+    expect(auth.user.name).toBe('Andi Musisi')
   })
 
   it('fails to log in with wrong credentials', async () => {
     const auth = useAuthStore()
+    axios.post.mockRejectedValue({ response: { data: { message: 'Email atau password salah' } } })
     await auth.login('salah@gmail.com', 'salah')
-    expect(auth.isAuthenticated).toBe(false) // Login harus gagal
+    expect(auth.isAuthenticated).toBe(false)
   })
 
   it('logs out a user', async () => {
     const auth = useAuthStore()
-    // Login dulu
+    const fakeUser = { id: 1, name: 'Andi Musisi', email: 'andi@gmail.com' }
+    axios.post.mockResolvedValue({ data: fakeUser })
     await auth.login('andi@gmail.com', '123')
     expect(auth.isAuthenticated).toBe(true)
-
-    // Jalankan action logout
     auth.logout()
-
-    // Verifikasi bahwa user sudah logout
     expect(auth.isAuthenticated).toBe(false)
-    expect(localStorage.getItem('token')).toBeNull() // Token di localStorage harus hilang
+    expect(localStorage.getItem('token')).toBeNull()
   })
 })
